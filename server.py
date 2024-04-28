@@ -1,80 +1,13 @@
 import os
 import socket
 import threading
+import pickle
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
-HOST = "127.0.0.1"
-PORT = 3334
-CREDENTIALS_FILE = './resources/credentials.txt'
-USER_FOLDER_PATH = './user_folders/'
-
-class StateMachine:
-    def __init__(self, client, global_state):
-        self.transitions = {}
-        self.start_state = None
-        self.end_states = []
-        self.current_state = None
-        self.global_state = global_state
-        self.client = client
-
-    def add_transition(self, state_name, command, transition, end_state=0):
-        self.transitions.setdefault(state_name, {})
-        self.transitions[state_name][command] = transition
-        if end_state:
-            self.end_states.append(state_name)
-
-    def set_start(self, name):
-        self.start_state = name
-        self.current_state = name
-
-    def process_command(self, unpacked_request):
-        print('state before %s' % self.current_state)
-        if unpacked_request.type not in self.transitions[self.current_state]:
-            valid_commands = ', '.join(self.transitions[self.current_state].keys())
-            return Response(-4, f'Invalid command. Valid commands are: {valid_commands}')
-        handler = self.transitions[self.current_state][unpacked_request.type]
-        (new_state, response) = handler(unpacked_request, self.global_state, self.client)
-        self.current_state = new_state
-        print('state after %s' % self.current_state)
-        return response
-
-class TopicProtocol(StateMachine):
-    def __init__(self, client, global_state):
-        super().__init__(client, global_state)
-        self.set_start('start')
-        self.add_transition('start', 'connect', request_connect)
-        self.add_transition('auth', 'disconnect', request_disconnect)
-        self.add_transition('auth', 'list_my_files', list_my_files)
-        self.add_transition('auth', 'list_all_files', list_all_files)
-
-class TopicList:
-    def __init__(self):
-        self.clients = []
-        self.logged_in_users = []
-        self.client_user_map = {}
-        self.lock = threading.Lock()
-
-    def add_client(self, client):
-        with self.lock:
-            self.clients.append(client)
-
-    def remove_client(self, client):
-        with self.lock:
-            self.clients.remove(client)
-
-
-
-class Request:
-    def __init__(self, command, params):
-        self.type = command
-        self.params = params
-
-
-class Response:
-    def __init__(self, status, payload):
-        self.status = status
-        self.payload = payload
+from util.constant import *
+from lib.topic import TopicProtocol, TopicList
+from lib.serialize import *
 
 
 def serialize(response):
@@ -197,6 +130,16 @@ def list_all_files(request, global_state, client):
     client.sendall(bytes(message, encoding='utf-8'))
     return ('auth', Response(0, 'Listed all files'))
 
+def download_file(global_state: TopicList, requesting_client: socket.socket, requesting_client_name: str, 
+                  file_name: str, target_client_name: str) -> None:
+    target_user_directory = get_user_folder(target_client_name)
+    requester_user_directory = get_user_folder(requesting_client_name) 
+    
+    target_user_file = os.path.join(target_user_directory, file_name)
+
+    serialized_file = pickle.dumps(target_user_file)
+    requesting_client.sendall(serialized_file)
+    # os.system(f'cp {target_user_file} {requester_user_directory}')
 
 is_running = True
 global_state = TopicList()
@@ -208,7 +151,13 @@ def handle_client_write(client, response):
 
 def handle_client_read(client):
     try:
-        protocol = TopicProtocol(client, global_state)
+        protocol = TopicProtocol(client, global_state, [
+            ['start', 'connect', request_connect],
+            ['auth', 'disconnect', request_disconnect],
+            ['auth', 'list_my_files', list_my_files],
+            ['auth', 'list_all_files', list_all_files],
+            ['auth', 'download_file', download_file]
+        ])
         while True:
             if client == None:
                return 
