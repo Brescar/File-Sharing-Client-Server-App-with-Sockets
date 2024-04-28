@@ -6,10 +6,10 @@ File Sharing System: Authenticate, share, and manage files seamlessly across aut
 
 ## Features
 
-- **Authentication:** - NOT implemented
+- **Authentication:** - partially implemented
   - The client authenticates through the account, sending the server a list of the files it publishes, and receives the list of all the files published by the other authenticated clients.
 
-- **Notifications:** - NOT implemented
+- **Notifications:** - ✔
   - When a client authenticates, the other authenticated clients receive a notification of their addition, along with the list of files they publish.
 
 - **Files connected to client:** - NOT implemented
@@ -23,10 +23,10 @@ File Sharing System: Authenticate, share, and manage files seamlessly across aut
 - **Local storage:** - NOT implemented
   - The client saves the file in his file system.
 
-- **Monitored host directory with notifications:** - NOT implemented
-  - Each client will have an exposed host directory that will be monitored.
-  - When adding a new file to this directory, the client will notify the rest of the clients by means of the server of the addition of the file.
-  - When deleting a file from this directory, the client will similarly notify the other clients through the server.
+- **Monitored host directory with notifications:** - ✔
+  - Each client will have an exposed host directory that will be monitored. ✔
+  - When adding a new file to this directory, the client will notify the rest of the clients by means of the server of the addition of the file. ✔
+  - When deleting a file from this directory, the client will similarly notify the other clients through the server. ✔
 
 ## Usage
 
