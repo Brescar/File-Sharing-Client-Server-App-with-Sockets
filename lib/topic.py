@@ -1,5 +1,6 @@
 import threading
-import lib.serialize
+from .serialize import Response
+from .serialize import Request
 
 class StateMachine:
     def __init__(self, client, global_state):
