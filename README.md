@@ -6,13 +6,13 @@ File Sharing System: Authenticate, share, and manage files seamlessly across aut
 
 ## Features
 
-- **Authentication:** - partially implemented
-  - The client authenticates through the account, sending the server a list of the files it publishes, and receives the list of all the files published by the other authenticated clients.
+- **Authentication:** - ✔
+  - The client authenticates through the account, sending the server a list of the files it publishes, and receives the list of all the files published by the other authenticated clients. ✔
 
 - **Notifications:** - ✔
-  - When a client authenticates, the other authenticated clients receive a notification of their addition, along with the list of files they publish.
+  - When a client authenticates, the other authenticated clients receive a notification of their addition, along with the list of files they publish. ✔
 
-- **Files connected to client:** - NOT implemented
+- **Files connected to client:** - partially implemented (implemented disconnecting properly)
   - When a client ends its session with the server, it confirms the end of the session and notifies the other authenticated clients to delete the respective client from the list.
 
 - **Request-based downloads:** - NOT implemented
