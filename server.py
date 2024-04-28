@@ -60,27 +60,32 @@ class StateMachine:
         return response
 
 
-def verify_credentials(username, password):
+def verify_credentials(username, password, logged_in_users):
     with open(CREDENTIALS_FILE, 'r') as file:
         for line in file:
             user, passw = line.strip().split(':')
-            if user == username and passw == password:
+            if user == username and passw == password and user not in logged_in_users:
                 return True
     return False
+
 
 def request_connect(request, global_state, client):
     if len(request.params) > 1:
         username = request.params[0]
         password = request.params[1]
-        if verify_credentials(username, password):
+        if verify_credentials(username, password, global_state.logged_in_users):
+            global_state.logged_in_users.append(username)
             return ('auth', Response(0, 'you are in'))
         else:
-            return ('start', Response(-2, 'you do not know the secret'))
+            return ('start', Response(-2, 'you do not know the secret or user is already logged in'))
     else:
         return ('start', Response(-1, 'not enough params. username & password required'))
 
 
 def request_disconnect(request, global_state, client):
+    if len(request.params) > 0:
+        username = request.params[0]
+        global_state.logged_in_users.remove(username)
     return ('start', Response(0, 'you are now out'))
 
 
@@ -95,6 +100,7 @@ class TopicProtocol(StateMachine):
 class TopicList:
     def __init__(self):
         self.clients = []
+        self.logged_in_users = []
         self.lock = threading.Lock()
 
     def add_client(self, client):
