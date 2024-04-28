@@ -9,6 +9,61 @@ PORT = 3334
 CREDENTIALS_FILE = './resources/credentials.txt'
 USER_FOLDER_PATH = './user_folders/'
 
+class StateMachine:
+    def __init__(self, client, global_state):
+        self.transitions = {}
+        self.start_state = None
+        self.end_states = []
+        self.current_state = None
+        self.global_state = global_state
+        self.client = client
+
+    def add_transition(self, state_name, command, transition, end_state=0):
+        self.transitions.setdefault(state_name, {})
+        self.transitions[state_name][command] = transition
+        if end_state:
+            self.end_states.append(state_name)
+
+    def set_start(self, name):
+        self.start_state = name
+        self.current_state = name
+
+    def process_command(self, unpacked_request):
+        print('state before %s' % self.current_state)
+        if unpacked_request.type not in self.transitions[self.current_state]:
+            valid_commands = ', '.join(self.transitions[self.current_state].keys())
+            return Response(-4, f'Invalid command. Valid commands are: {valid_commands}')
+        handler = self.transitions[self.current_state][unpacked_request.type]
+        (new_state, response) = handler(unpacked_request, self.global_state, self.client)
+        self.current_state = new_state
+        print('state after %s' % self.current_state)
+        return response
+
+class TopicProtocol(StateMachine):
+    def __init__(self, client, global_state):
+        super().__init__(client, global_state)
+        self.set_start('start')
+        self.add_transition('start', 'connect', request_connect)
+        self.add_transition('auth', 'disconnect', request_disconnect)
+        self.add_transition('auth', 'list_my_files', list_my_files)
+        self.add_transition('auth', 'list_all_files', list_all_files)
+
+class TopicList:
+    def __init__(self):
+        self.clients = []
+        self.logged_in_users = []
+        self.client_user_map = {}
+        self.lock = threading.Lock()
+
+    def add_client(self, client):
+        with self.lock:
+            self.clients.append(client)
+
+    def remove_client(self, client):
+        with self.lock:
+            self.clients.remove(client)
+
+
 
 class Request:
     def __init__(self, command, params):
@@ -52,37 +107,6 @@ class FileChangeHandler(FileSystemEventHandler):
             client.sendall(bytes(message, encoding='utf-8'))
 
 
-class StateMachine:
-    def __init__(self, client, global_state):
-        self.transitions = {}
-        self.start_state = None
-        self.end_states = []
-        self.current_state = None
-        self.global_state = global_state
-        self.client = client
-
-    def add_transition(self, state_name, command, transition, end_state=0):
-        self.transitions.setdefault(state_name, {})
-        self.transitions[state_name][command] = transition
-        if end_state:
-            self.end_states.append(state_name)
-
-    def set_start(self, name):
-        self.start_state = name
-        self.current_state = name
-
-    def process_command(self, unpacked_request):
-        print('state before %s' % self.current_state)
-        if unpacked_request.type not in self.transitions[self.current_state]:
-            valid_commands = ', '.join(self.transitions[self.current_state].keys())
-            return Response(-4, f'Invalid command. Valid commands are: {valid_commands}')
-        handler = self.transitions[self.current_state][unpacked_request.type]
-        (new_state, response) = handler(unpacked_request, self.global_state, self.client)
-        self.current_state = new_state
-        print('state after %s' % self.current_state)
-        return response
-
-
 def verify_credentials(username, password, logged_in_users):
     with open(CREDENTIALS_FILE, 'r') as file:
         for line in file:
@@ -97,6 +121,14 @@ def create_user_folder(username):
     os.makedirs(user_folder, exist_ok=True)
     return user_folder
 
+def get_user_folder(username: str) -> str:
+    user_folder = os.path.join(USER_FOLDER_PATH, f'{username}_files')
+
+    if not os.path.exists(user_folder):
+        raise FileNotFoundError(f'Requested file {user_folder} does not exist.')
+
+    return user_folder 
+
 def start_observer(user_folder, username, global_state):
     event_handler = FileChangeHandler(username, global_state)
     observer = Observer()
@@ -106,6 +138,13 @@ def start_observer(user_folder, username, global_state):
 def notify_clients(username, user_folder, global_state):
     files = os.listdir(user_folder)
     message = f'User {username} has logged in. They have the following files: {", ".join(files)}'
+    for client in global_state.clients:
+        client.sendall(bytes(message, encoding='utf-8'))
+
+def notify_clients_disconnect(username: str, user_folder: str, global_state: TopicList) -> None:
+    files = os.listdir(user_folder)
+    message = f'User {username} has logged out. You have lost access to the following files {", ".join(files)}'
+
     for client in global_state.clients:
         client.sendall(bytes(message, encoding='utf-8'))
 
@@ -130,8 +169,7 @@ def request_connect(request, global_state, client):
 def request_disconnect(request, global_state, client):
     username = global_state.client_user_map.get(client)
     
-    for client in global_state.clients:
-        client.sendall(bytes(f'client {username} was disconnected.', encoding='utf-8'))
+    notify_clients_disconnect(username, get_user_folder(username), global_state)
 
     if username:
         global_state.logged_in_users.remove(username)
@@ -158,32 +196,6 @@ def list_all_files(request, global_state, client):
             message += f'User {username} has the following files: {", ".join(files)}\n'
     client.sendall(bytes(message, encoding='utf-8'))
     return ('auth', Response(0, 'Listed all files'))
-
-
-class TopicProtocol(StateMachine):
-    def __init__(self, client, global_state):
-        super().__init__(client, global_state)
-        self.set_start('start')
-        self.add_transition('start', 'connect', request_connect)
-        self.add_transition('auth', 'disconnect', request_disconnect)
-        self.add_transition('auth', 'list_my_files', list_my_files)
-        self.add_transition('auth', 'list_all_files', list_all_files)
-
-
-class TopicList:
-    def __init__(self):
-        self.clients = []
-        self.logged_in_users = []
-        self.client_user_map = {}
-        self.lock = threading.Lock()
-
-    def add_client(self, client):
-        with self.lock:
-            self.clients.append(client)
-
-    def remove_client(self, client):
-        with self.lock:
-            self.clients.remove(client)
 
 
 is_running = True
