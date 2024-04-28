@@ -115,6 +115,7 @@ def request_connect(request, global_state, client):
         password = request.params[1]
         if verify_credentials(username, password, global_state.logged_in_users):
             global_state.logged_in_users.append(username)
+            global_state.client_user_map[client] = username
             user_folder = create_user_folder(username)
             start_observer(user_folder, username, global_state)
             notify_clients(username, user_folder, global_state)
@@ -126,9 +127,10 @@ def request_connect(request, global_state, client):
 
 
 def request_disconnect(request, global_state, client):
-    if len(request.params) > 0:
-        username = request.params[0]
+    username = global_state.client_user_map.get(client)
+    if username:
         global_state.logged_in_users.remove(username)
+        del global_state.client_user_map[client]
     return ('start', Response(0, 'you are now out'))
 
 def list_my_files(request, global_state, client):
@@ -144,8 +146,9 @@ def list_all_files(request, global_state, client):
     message = ''
     for username in global_state.logged_in_users:
         user_folder = os.path.join(USER_FOLDER_PATH, f'{username}_files')
-        files = os.listdir(user_folder)
-        message += f'User {username} has the following files: {", ".join(files)}\n'
+        if os.path.exists(user_folder):
+            files = os.listdir(user_folder)
+            message += f'User {username} has the following files: {", ".join(files)}\n'
     client.sendall(bytes(message, encoding='utf-8'))
     return ('auth', Response(0, 'Listed all files'))
 
@@ -164,6 +167,7 @@ class TopicList:
     def __init__(self):
         self.clients = []
         self.logged_in_users = []
+        self.client_user_map = {}
         self.lock = threading.Lock()
 
     def add_client(self, client):
