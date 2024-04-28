@@ -130,27 +130,30 @@ def list_all_files(request, global_state, client):
     client.sendall(bytes(message, encoding='utf-8'))
     return ('auth', Response(0, 'Listed all files'))
 
+# TODO: trying to download files from the server of a user which is not logged in should not work,
+# with message, but currently it does work. Fix this.
 def download_file(request, global_state, requesting_client):
     if len(request.params) < 2:
         return ('auth', Response(-1, 'Not enough parameters. Target client name and file name (extension included) are required.'))
     
     target_client_name, file_name = request.params
     requesting_client_name = global_state.client_user_map.get(requesting_client)
-
+    
     if not requesting_client_name:
         return ('auth', Response(-3, 'User is not logged in'))
-
+    
     target_user_directory = get_user_folder(target_client_name)
     target_user_file = os.path.join(target_user_directory, file_name)
     target_user_file = target_user_file.replace('\\', os.sep).replace('/', os.sep)
-
-    print(target_user_file)
-
+    
     if not os.path.exists(target_user_file):
         return ('auth', Response(-2, 'File does not exist'))
-
-    serialized_file = pickle.dumps(target_user_file)
+    
+    with open(target_user_file, 'rb') as f:
+        file_content = f.read()
+    serialized_file = pickle.dumps(file_content)
     requesting_client.sendall(serialized_file)
+    
     return ('auth', Response(0, 'File downloaded successfully'))
 
 is_running = True
