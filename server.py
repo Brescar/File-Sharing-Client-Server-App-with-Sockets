@@ -131,6 +131,24 @@ def request_disconnect(request, global_state, client):
         global_state.logged_in_users.remove(username)
     return ('start', Response(0, 'you are now out'))
 
+def list_my_files(request, global_state, client):
+    if len(request.params) > 0:
+        username = request.params[0]
+        user_folder = os.path.join(USER_FOLDER_PATH, f'{username}_files')
+        files = os.listdir(user_folder)
+        message = f'You have the following files: {", ".join(files)}'
+        client.sendall(bytes(message, encoding='utf-8'))
+    return ('auth', Response(0, 'Listed your files'))
+
+def list_all_files(request, global_state, client):
+    message = ''
+    for username in global_state.logged_in_users:
+        user_folder = os.path.join(USER_FOLDER_PATH, f'{username}_files')
+        files = os.listdir(user_folder)
+        message += f'User {username} has the following files: {", ".join(files)}\n'
+    client.sendall(bytes(message, encoding='utf-8'))
+    return ('auth', Response(0, 'Listed all files'))
+
 
 class TopicProtocol(StateMachine):
     def __init__(self, client, global_state):
@@ -138,6 +156,8 @@ class TopicProtocol(StateMachine):
         self.set_start('start')
         self.add_transition('start', 'connect', request_connect)
         self.add_transition('auth', 'disconnect', request_disconnect)
+        self.add_transition('auth', 'list_my_files', list_my_files)
+        self.add_transition('auth', 'list_all_files', list_all_files)
 
 
 class TopicList:
