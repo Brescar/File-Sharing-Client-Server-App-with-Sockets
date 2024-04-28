@@ -1,9 +1,13 @@
+import os
 import socket
 import threading
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
 
 HOST = "127.0.0.1"
 PORT = 3334
 CREDENTIALS_FILE = './resources/credentials.txt'
+USER_FOLDER_PATH = './user_folders/'
 
 
 class Request:
@@ -27,6 +31,25 @@ def deserialize(request):
     if len(items) > 1:
         return Request(items[0], items[1:])
     return Request(items[0], [])
+
+
+class FileChangeHandler(FileSystemEventHandler):
+    def __init__(self, username, global_state):
+        self.username = username
+        self.global_state = global_state
+
+    def on_modified(self, event):
+        self.notify_clients(f'File {event.src_path} has been modified')
+
+    def on_created(self, event):
+        self.notify_clients(f'File {event.src_path} has been created')
+
+    def on_deleted(self, event):
+        self.notify_clients(f'File {event.src_path} has been deleted')
+
+    def notify_clients(self, message):
+        for client in self.global_state.clients:
+            client.sendall(bytes(message, encoding='utf-8'))
 
 
 class StateMachine:
@@ -69,12 +92,32 @@ def verify_credentials(username, password, logged_in_users):
     return False
 
 
+def create_user_folder(username):
+    user_folder = os.path.join(USER_FOLDER_PATH, f'{username}_files')
+    os.makedirs(user_folder, exist_ok=True)
+    return user_folder
+
+def start_observer(user_folder, username, global_state):
+    event_handler = FileChangeHandler(username, global_state)
+    observer = Observer()
+    observer.schedule(event_handler, user_folder, recursive=True)
+    observer.start()
+
+def notify_clients(username, user_folder, global_state):
+    files = os.listdir(user_folder)
+    message = f'User {username} has logged in. They have the following files: {", ".join(files)}'
+    for client in global_state.clients:
+        client.sendall(bytes(message, encoding='utf-8'))
+
 def request_connect(request, global_state, client):
     if len(request.params) > 1:
         username = request.params[0]
         password = request.params[1]
         if verify_credentials(username, password, global_state.logged_in_users):
             global_state.logged_in_users.append(username)
+            user_folder = create_user_folder(username)
+            start_observer(user_folder, username, global_state)
+            notify_clients(username, user_folder, global_state)
             return ('auth', Response(0, 'you are in'))
         else:
             return ('start', Response(-2, 'you do not know the secret or user is already logged in'))
