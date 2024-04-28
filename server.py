@@ -128,9 +128,11 @@ def request_connect(request, global_state, client):
 
 
 def request_disconnect(request, global_state, client):
-    # TODO: right before disconnecting all other connected users need to know that this user
-    # has disconnected and its files are no longer available
     username = global_state.client_user_map.get(client)
+    
+    for client in global_state.clients:
+        client.sendall(bytes(f'client {username} was disconnected.', encoding='utf-8'))
+
     if username:
         global_state.logged_in_users.remove(username)
         del global_state.client_user_map[client]
@@ -197,7 +199,7 @@ def handle_client_read(client):
         protocol = TopicProtocol(client, global_state)
         while True:
             if client == None:
-                break
+               return 
             data = client.recv(1024)
             if not data:
                 break
