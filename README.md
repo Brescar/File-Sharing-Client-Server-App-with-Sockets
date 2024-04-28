@@ -25,7 +25,7 @@ File Sharing System: Authenticate, share, and manage files seamlessly across aut
 
 - **Monitored host directory with notifications:** - NOT implemented
   - Each client will have an exposed host directory that will be monitored.
-  - When adding a new file to this directory, the client will be notified by means of the server of the addition of the file.
+  - When adding a new file to this directory, the client will notify the rest of the clients by means of the server of the addition of the file.
   - When deleting a file from this directory, the client will similarly notify the other clients through the server.
 
 ## Usage
