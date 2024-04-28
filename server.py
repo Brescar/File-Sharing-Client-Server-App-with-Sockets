@@ -127,6 +127,8 @@ def request_connect(request, global_state, client):
 
 
 def request_disconnect(request, global_state, client):
+    # TODO: right before disconnecting all other connected users need to know that this user
+    # has disconnected and its files are no longer available
     username = global_state.client_user_map.get(client)
     if username:
         global_state.logged_in_users.remove(username)
