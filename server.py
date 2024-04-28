@@ -119,6 +119,7 @@ def request_connect(request, global_state, client):
             user_folder = create_user_folder(username)
             start_observer(user_folder, username, global_state)
             notify_clients(username, user_folder, global_state)
+            list_all_files(request, global_state, client)
             return ('auth', Response(0, 'you are in'))
         else:
             return ('start', Response(-2, 'you do not know the secret or user is already logged in'))
