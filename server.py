@@ -134,13 +134,15 @@ def request_disconnect(request, global_state, client):
     return ('start', Response(0, 'you are now out'))
 
 def list_my_files(request, global_state, client):
-    if len(request.params) > 0:
-        username = request.params[0]
+    username = global_state.client_user_map.get(client)  # Get the username associated with the client
+    if username:
         user_folder = os.path.join(USER_FOLDER_PATH, f'{username}_files')
         files = os.listdir(user_folder)
         message = f'You have the following files: {", ".join(files)}'
         client.sendall(bytes(message, encoding='utf-8'))
-    return ('auth', Response(0, 'Listed your files'))
+        return ('auth', Response(0, 'Listed your files'))
+    else:
+        return ('auth', Response(-3, 'User is not logged in'))
 
 def list_all_files(request, global_state, client):
     message = ''
