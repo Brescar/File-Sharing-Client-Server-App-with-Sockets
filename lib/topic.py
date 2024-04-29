@@ -32,14 +32,14 @@ class StateMachine:
         print('state after %s' % self.current_state)
         return response
 
-class TopicProtocol(StateMachine):
+class Protocol(StateMachine):
     def __init__(self, client, global_state, transitions_list):
         super().__init__(client, global_state)
         self.set_start('start')
         for transition in transitions_list:
             self.add_transition(transition[0], transition[1], transition[2])
 
-class TopicList:
+class ClientList:
     def __init__(self):
         self.clients = []
         self.logged_in_users = []
