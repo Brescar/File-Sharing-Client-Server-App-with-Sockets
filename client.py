@@ -3,8 +3,7 @@ import threading
 import pickle
 import os
 
-HOST = "127.0.0.1"
-PORT = 3334
+from util.constant import HOST, PORT
 
 last_sent_command = ''
 
@@ -13,7 +12,7 @@ def handle_server_write(s):
         data = s.recv(1024)
         try:
             file_content = pickle.loads(data)
-            file_name = os.path.basename(last_sent_command.split()[-1])  # Get the file name from the last sent command
+            file_name = os.path.basename(last_sent_command.split()[-1])
             downloads_dir = os.path.join(os.getcwd(), 'downloads')
             os.makedirs(downloads_dir, exist_ok=True)
 
