@@ -2,6 +2,8 @@ import threading
 from .serialize import Response
 from .serialize import Request
 
+from util.constant import START
+
 class StateMachine:
     def __init__(self, client, global_state):
         self.transitions = {}
@@ -35,7 +37,7 @@ class StateMachine:
 class Protocol(StateMachine):
     def __init__(self, client, global_state, transitions_list):
         super().__init__(client, global_state)
-        self.set_start('start')
+        self.set_start(START)
         for transition in transitions_list:
             self.add_transition(transition[0], transition[1], transition[2])
 
