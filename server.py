@@ -69,13 +69,13 @@ def start_observer(user_folder, username, global_state):
 
 def notify_clients(username, user_folder, global_state):
     files = os.listdir(user_folder)
-    message = f'User {username} has logged in. They have the following files: {", ".join(files)}'
+    message = f'User {username} has logged in. \nThey have the following files: {", ".join(files)}'
     for client in global_state.clients:
         client.sendall(bytes(message, encoding='utf-8'))
 
 def notify_clients_disconnect(username: str, user_folder: str, global_state: ClientList) -> None:
     files = os.listdir(user_folder)
-    message = f'User {username} has logged out. You have lost access to the following files {", ".join(files)}'
+    message = f'User {username} has logged out. \nYou have lost access to the following files {", ".join(files)}'
 
     for client in global_state.clients:
         client.sendall(bytes(message, encoding='utf-8'))
@@ -130,7 +130,7 @@ def list_all_files(request, global_state, client):
 
 def download_file(request, global_state, requesting_client):
     if len(request.params) < 2:
-        return (AUTH, Response(-1, 'Not enough parameters. Target client name and file name (extension included) are required.'))
+        return (AUTH, Response(-1, 'Not enough parameters. \nTarget client name and file name (extension included) are required.'))
     
     target_client_name, file_name = request.params
     requesting_client_name = global_state.client_user_map.get(requesting_client)
