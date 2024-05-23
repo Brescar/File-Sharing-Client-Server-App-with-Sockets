@@ -27,7 +27,7 @@ class StateMachine:
         print('state before %s' % self.current_state)
         if unpacked_request.type not in self.transitions[self.current_state]:
             valid_commands = ', '.join(self.transitions[self.current_state].keys())
-            return Response(-4, f'Invalid command. Valid commands are: {valid_commands}')
+            return Response(-4, f'Invalid command. Valid commands are: {valid_commands}. **')
         handler = self.transitions[self.current_state][unpacked_request.type]
         (new_state, response) = handler(unpacked_request, self.global_state, self.client)
         self.current_state = new_state
