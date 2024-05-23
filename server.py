@@ -27,13 +27,13 @@ class FileChangeHandler(FileSystemEventHandler):
         self.global_state = global_state
 
     def on_modified(self, event):
-        self.notify_clients(f'File {event.src_path} has been modified')
+        self.notify_clients(f'File {event.src_path} has been modified. **')
 
     def on_created(self, event):
-        self.notify_clients(f'File {event.src_path} has been created')
+        self.notify_clients(f'File {event.src_path} has been created. **')
 
     def on_deleted(self, event):
-        self.notify_clients(f'File {event.src_path} has been deleted')
+        self.notify_clients(f'File {event.src_path} has been deleted. **')
 
     def notify_clients(self, message):
         for client in self.global_state.clients:
@@ -57,7 +57,7 @@ def get_user_folder(username: str) -> str:
     user_folder = os.path.join(USER_FOLDER_PATH, f'{username}_files')
 
     if not os.path.exists(user_folder):
-        raise FileNotFoundError(f'Requested file {user_folder} does not exist.')
+        raise FileNotFoundError(f'Requested file {user_folder} does not exist. **')
 
     return user_folder 
 
@@ -69,13 +69,13 @@ def start_observer(user_folder, username, global_state):
 
 def notify_clients(username, user_folder, global_state):
     files = os.listdir(user_folder)
-    message = f'User {username} has logged in. \nThey have the following files: {", ".join(files)}'
+    message = f'User {username} has logged in. They have the following files: {", ".join(files)}. **\n'
     for client in global_state.clients:
         client.sendall(bytes(message, encoding='utf-8'))
 
 def notify_clients_disconnect(username: str, user_folder: str, global_state: ClientList) -> None:
     files = os.listdir(user_folder)
-    message = f'User {username} has logged out. \nYou have lost access to the following files {", ".join(files)}'
+    message = f'User {username} has logged out. You have lost access to the following files: {", ".join(files)}. **\n'
 
     for client in global_state.clients:
         client.sendall(bytes(message, encoding='utf-8'))
@@ -91,11 +91,11 @@ def request_connect(request, global_state, client):
             start_observer(user_folder, username, global_state)
             notify_clients(username, user_folder, global_state)
             list_all_files(request, global_state, client)
-            return (AUTH, Response(0, 'you are in'))
+            return (AUTH, Response(0, 'you are in. **'))
         else:
-            return (START, Response(-2, 'you do not know the secret or user is already logged in'))
+            return (START, Response(-2, 'you do not know the secret or user is already logged in. **'))
     else:
-        return (START, Response(-1, 'not enough params. username & password required'))
+        return (START, Response(-1, 'not enough params. username & password required. **'))
 
 def request_disconnect(request, global_state, client):
     username = global_state.client_user_map.get(client)
@@ -105,18 +105,18 @@ def request_disconnect(request, global_state, client):
     if username:
         global_state.logged_in_users.remove(username)
         del global_state.client_user_map[client]
-    return (START, Response(0, 'you are now out'))
+    return (START, Response(0, 'you are now out. **'))
 
 def list_my_files(request, global_state, client):
     username = global_state.client_user_map.get(client)
     if username:
         user_folder = os.path.join(USER_FOLDER_PATH, f'{username}_files')
         files = os.listdir(user_folder)
-        message = f'You have the following files: {", ".join(files)}'
+        message = f'You have the following files: {", ".join(files)}. **'
         client.sendall(bytes(message, encoding='utf-8'))
-        return (AUTH, Response(0, 'Listed your files'))
+        return (AUTH, Response(0, 'Listed your files. **'))
     else:
-        return (AUTH, Response(-3, 'User is not logged in'))
+        return (AUTH, Response(-3, 'User is not logged in. **'))
 
 def list_all_files(request, global_state, client):
     message = ''
@@ -124,33 +124,33 @@ def list_all_files(request, global_state, client):
         user_folder = os.path.join(USER_FOLDER_PATH, f'{username}_files')
         if os.path.exists(user_folder):
             files = os.listdir(user_folder)
-            message += f'User {username} has the following files: {", ".join(files)}\n'
+            message += f'User {username} has the following files: {", ".join(files)}. **\n'
     client.sendall(bytes(message, encoding='utf-8'))
-    return (AUTH, Response(0, 'Listed all files'))
+    return (AUTH, Response(0, 'Listed all files. **'))
 
 def download_file(request, global_state, requesting_client):
     if len(request.params) < 2:
-        return (AUTH, Response(-1, 'Not enough parameters. \nTarget client name and file name (extension included) are required.'))
+        return (AUTH, Response(-1, 'Not enough parameters. Target client name and file name (extension included) are required. **'))
     
     target_client_name, file_name = request.params
     requesting_client_name = global_state.client_user_map.get(requesting_client)
     
     if not requesting_client_name:
-        return (AUTH, Response(-3, 'User is not logged in'))
+        return (AUTH, Response(-3, 'User is not logged in. **'))
     
     target_user_directory = get_user_folder(target_client_name)
     target_user_file = os.path.join(target_user_directory, file_name)
     target_user_file = target_user_file.replace('\\', os.sep).replace('/', os.sep)
     
     if not os.path.exists(target_user_file):
-        return (AUTH, Response(-2, 'File does not exist'))
+        return (AUTH, Response(-2, 'File does not exist. **'))
     
     with open(target_user_file, 'rb') as f:
         file_content = f.read()
     serialized_file = pickle.dumps(file_content)
     requesting_client.sendall(serialized_file)
     
-    return (AUTH, Response(0, 'File downloaded successfully'))
+    return (AUTH, Response(0, 'File downloaded successfully. **'))
 
 is_running = True
 global_state = ClientList()
