@@ -27,13 +27,13 @@ def handle_server_write(s):
             with open(file_path, 'wb') as f:
                 f.write(file_content)
         except pickle.UnpicklingError:
-            print("Server says", data.decode())
+            print("** Server says", data.decode())
             
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     s.connect((HOST, PORT))
     server_write_thread = threading.Thread(target=handle_server_write, args=(s,))
     server_write_thread.start()
     while True:
-        line = input('>')
+        line = input('>$ ')
         last_sent_command = line
         s.sendall(line.encode())
