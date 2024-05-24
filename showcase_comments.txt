@@ -1,0 +1,8 @@
+```
+command1 connect username password
+command2 list_my_files
+command3 list_all_files
+command4 download_file username filename
+command5 disconnect
+
+```
